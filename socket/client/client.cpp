@@ -9,6 +9,7 @@ DWORD WINAPI chat(LPVOID p)
 	char s[200];
 	memset(s,0,sizeof(s));
 	int a;
+	FILE* fp;
 	while(1)
 	{
 		//recvfrom也可以
@@ -23,6 +24,18 @@ DWORD WINAPI chat(LPVOID p)
 		else
 		{
 			printf("other: %s\n",s);
+			fp=fopen("./record.txt","a+");
+			if(fp==NULL)
+			{
+				printf("save message fail\n");
+			}
+			else
+			{
+				fprintf(fp,"                            ");
+				fwrite(s,strlen(s),1,fp);
+				fwrite("\n",1,1,fp);
+			}
+			fclose(fp);
 			memset(s,0,sizeof(s));
 		}
 	}
@@ -35,25 +48,64 @@ DWORD WINAPI chat1(LPVOID p)
 	int len;
 	char s[200];
 	memset(s,0,sizeof(s));
+	FILE* fp;
+	int pos=0;
+	char* s1=NULL;
 	while(1)
 	{
 		printf("input:\n");
 		fgets(s,200,stdin);
 		len = strlen(s);
-		printf("len1:%d\n",strlen(s));
-		if(s[len-1]=='\n')
+
+		if(strcmp(s,"seek\n")!=0)
 		{
-			s[len-1]='\0';
+			if(s[len-1]=='\n')
+			{
+				s[len-1]='\0';
+			}
+			printf("len2:%d\n",strlen(s));
+			//sendto 也可以
+			if(SOCKET_ERROR == send(con_sock,s,strlen(s),0))
+			{
+				printf("send fail\n");
+			}
+			else
+			{
+				fp=fopen("./record.txt","a+");
+				if(fp==NULL)
+				{
+					printf("save message fail\n");
+				}
+				else
+				{
+					fwrite(s,strlen(s),1,fp);
+					fwrite("\n",1,1,fp);
+					}
+				fclose(fp);
+			}
 		}
-		printf("len2:%d\n",strlen(s));
-		//sendto 也可以
-		if(SOCKET_ERROR == send(con_sock,s,strlen(s),0))
+		else
 		{
-			printf("send fail\n");
+			fp=fopen("./record.txt","r");
+			if(fp==NULL)
+			{
+				printf("save message fail\n");
+			}
+			fseek(fp,0,SEEK_END);
+			
+			pos = ftell(fp);
+			s1 = (char*)malloc(pos);	
+			rewind(fp);
+			fread(s1,1,pos,fp);
+			s1[pos]='\0';
+			printf(s1);
+			fclose(fp);
 		}
 	}
 
 }
+
+
 int main()
 {
 	WORD word = MAKEWORD(2,2);
@@ -98,12 +150,12 @@ int main()
 	HANDLE handle1 = CreateThread(NULL,0,chat1,(LPVOID)&client_sock,0,NULL);
 	if(handle1 == NULL)
 	{
-		printf("createthread fail\n");
+		printf("createthread1 fail\n");
 	}
-
 	
 	CloseHandle(handle);
 	CloseHandle(handle1);
+	
 	while(1);
 	
 	WSACleanup();
